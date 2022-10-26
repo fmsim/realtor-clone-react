@@ -1,6 +1,13 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
+import { toast } from "react-toastify";
+
+// firebase
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+
+import { db } from "../firebase";
 
 // components
 import OAuth from "../components/OAuth";
@@ -14,12 +21,37 @@ export default function SignUp() {
     password: ""
   });
   const { name, email, password } = formData;
+  const navigate = useNavigate();
 
   function onChange(e) {
     setFormData(prevState => ({
       ...prevState,
       [e.target.id]: e.target.value
     }));
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault(); // the side will not be refreshed by clicking the submit button
+
+    try {
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // @ts-ignore
+      updateProfile(auth.currentUser, {
+        displayName: name
+      });
+      const user = userCredential.user;
+      const formDataCopy = { ...formData };
+      // @ts-ignore
+      delete formDataCopy.password;
+      // @ts-ignore
+      formDataCopy.timestamp = serverTimestamp();
+      await setDoc(doc(db, "users", user.uid), formDataCopy);
+      // toast.success("Sign up was successful");
+      navigate("/");
+    } catch (error) {
+      toast.error("Something went wrong with the registration");
+    }
   }
 
   return (
@@ -31,7 +63,7 @@ export default function SignUp() {
         </div>
         {/* end of image div */}
         <div className="w-full md:w-[67%] lg:w-[40%] lg:ml-20">
-          <form>
+          <form onSubmit={onSubmit}>
             <input type="text" className="w-full px-4 py.2 text-xl text-gray-700 bg-white border-gray-700 rounded transition ease-in-out mb-6" id="name" value={name} onChange={onChange} placeholder="Full name" />
 
             <input type="email" className="w-full px-4 py.2 text-xl text-gray-700 bg-white border-gray-700 rounded transition ease-in-out mb-6" id="email" value={email} onChange={onChange} placeholder="Email address" />
